@@ -1,59 +1,53 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib
-    ( someFunc
+    ( Row
+      , csvFile
     ) where
 
-import Data.Attoparsec.Char8
+import Data.Attoparsec.Text
 import Control.Applicative ((<|>))
+import Data.Monoid
+import Data.Text
+import Debug.Trace
 
-csv-file :: Parser [Row]
-csv-file = many row <* endOfLine
+csvFile :: Parser [Row]
+csvFile = many' row
+--row = field-list, eol
+--field-list = field [ ",", field-list]
+--field = [whitespace]
 
+--eol = "\n"
 
 row :: Parser Row
-row      = do 
+row      = do
            fn <-  first_name
-	   char ','
-           ln <- last_name
            char ','
-           e <- email
+           ln <-  last_name
            char ','
-           g <- grade
-	   return (Row fn ln e g)
+           e <-  email
+           char ','
+           g <-  grade
+           let r = Row fn ln e g
+           endOfLine <|> endOfInput
+           return r
 
-Data Row = Row FirstName LastName Email Grade
+data Row = Row FirstName LastName Email Grade
+            deriving (Show, Eq)
 
-type FirstName = String
-type LastName  = String
-type Email     = String
-type Grade     = String
+type FirstName = Text
+type LastName  = Text
+type Email     = Text
+type Grade     = Text
 
-
-
-
-first_name :: Parser FirtsName
-first_name = many letter_ascii
+first_name :: Parser FirstName
+first_name = takeTill (== ',')  <?> "FirstName" 
 
 last_name :: Parser LastName
-last_name = many letter_ascii
+last_name = takeTill (== ',') <?> "LastName"
 
 email :: Parser Email
-email = do 
-        vorDemNamen <- takeTill (== '@') 
-        char '@'
-        nachDemNamen <- many anyChar
-        return (vorDemNamen ++ "@" ++ nachDemNamen) 
-        
+email= takeTill (== ',') <?> "email"
 
 grade :: Parser Grade
-grade = many digit
-
-float :: Parser Float
-float = do 
-	vorKomma <- takeTill (== '.')
-        char '.'
-        nachKomma <- many digit
-	let floatx = vorKomma ++ "." ++ nachKomma
-        return (read floatx :: Float)  
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc" 
+grade = takeTill isEndOfLine <?> "grade"
